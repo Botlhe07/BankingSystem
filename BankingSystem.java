@@ -793,4 +793,13 @@ public class BankingSystem {
             }
         }
     }
+
+    // Add this to your BankingSystem.java
+    public Customer getCurrentCustomer() {
+        return currentCustomer;
+    }
+
+    public BankEmployee getCurrentEmployee() {
+        return currentEmployee;
+    }
 }
