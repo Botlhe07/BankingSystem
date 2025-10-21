@@ -1,4 +1,3 @@
-// EmployeeDashboardScreen.java
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -6,12 +5,12 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import java.util.List;
 
 public class EmployeeDashboardScreen {
     private Scene scene;
     private NavigationController navigationController;
     private BankingSystem bankingSystem;
-    private VBox formFields; // Moved to instance variable
 
     public EmployeeDashboardScreen(NavigationController navigationController, BankingSystem bankingSystem) {
         this.navigationController = navigationController;
@@ -40,11 +39,15 @@ public class EmployeeDashboardScreen {
         dashboardGrid.setVgap(20);
         dashboardGrid.setPadding(new Insets(20));
 
-        // Add dashboard cards
-        dashboardGrid.add(createDashboardCard("Total Customers", "150", "primary-color"), 0, 0);
-        dashboardGrid.add(createDashboardCard("Active Accounts", "245", "success-color"), 1, 0);
-        dashboardGrid.add(createDashboardCard("Pending Actions", "12", "warning-color"), 2, 0);
-        dashboardGrid.add(createDashboardCard("Total Balance", "$1.2M", "secondary-color"), 3, 0);
+        // Get actual statistics
+        int totalCustomers = bankingSystem.getAllCustomers().size();
+        int totalAccounts = bankingSystem.getAllAccounts().size();
+        double totalBalance = calculateTotalBalance();
+
+        // Add dashboard cards with real data
+        dashboardGrid.add(createDashboardCard("Total Customers", String.valueOf(totalCustomers), "primary-color"), 0, 0);
+        dashboardGrid.add(createDashboardCard("Total Accounts", String.valueOf(totalAccounts), "success-color"), 1, 0);
+        dashboardGrid.add(createDashboardCard("Total Balance", "P" + String.format("%.2f", totalBalance), "warning-color"), 2, 0);
 
         content.getChildren().addAll(
                 createSectionTitle("Bank Overview"),
@@ -61,6 +64,14 @@ public class EmployeeDashboardScreen {
         scene.getStylesheets().add("banking-styles.css");
     }
 
+    private double calculateTotalBalance() {
+        double total = 0.0;
+        for (Account account : bankingSystem.getAllAccounts()) {
+            total += account.getBalance();
+        }
+        return total;
+    }
+
     private HBox createHeader(String title, String subtitle) {
         Label titleLabel = new Label(title);
         titleLabel.getStyleClass().add("header-title");
@@ -72,7 +83,10 @@ public class EmployeeDashboardScreen {
 
         Button logoutButton = new Button("Logout");
         logoutButton.getStyleClass().addAll("btn", "btn-outline");
-        logoutButton.setOnAction(e -> navigationController.showLoginScreen());
+        logoutButton.setOnAction(e -> {
+            bankingSystem.logout();
+            navigationController.showLoginScreen();
+        });
 
         HBox header = new HBox(20, titleBox, logoutButton);
         header.setAlignment(Pos.CENTER_LEFT);
@@ -134,14 +148,10 @@ public class EmployeeDashboardScreen {
         actionsBox.setAlignment(Pos.CENTER_LEFT);
 
         String[] actions = {"New Customer", "Open Account", "View Reports", "Process Interest"};
-        String[] styles = {"btn-primary", "btn-success", "btn-secondary", "btn-warning"};
 
-        for (int i = 0; i < actions.length; i++) {
-            final String action = actions[i]; // Create final variable for lambda
-            final String style = styles[i];   // Create final variable for lambda
-
+        for (String action : actions) {
             Button actionBtn = new Button(action);
-            actionBtn.getStyleClass().addAll("btn", style);
+            actionBtn.getStyleClass().addAll("btn", "btn-primary");
             actionBtn.setOnAction(e -> handleQuickAction(action));
             actionsBox.getChildren().add(actionBtn);
         }
@@ -151,6 +161,9 @@ public class EmployeeDashboardScreen {
 
     private void handleMenuAction(String menuItem) {
         switch (menuItem) {
+            case "Dashboard":
+                // Already on dashboard, do nothing
+                break;
             case "Create Customer":
                 navigationController.showCustomerRegistration();
                 break;
@@ -158,20 +171,22 @@ public class EmployeeDashboardScreen {
                 navigationController.showAccountCreation();
                 break;
             case "View Customers":
-                // Show customers list
-                showAlert(Alert.AlertType.INFORMATION, "View Customers", "Customer list feature coming soon!");
+                navigationController.showCustomerList();
                 break;
-            case "Register Employee":
-                navigationController.showMainMenu();
+            case "View Accounts":
+                showAllAccounts();
+                break;
+            case "Transaction History":
+                showTransactionHistory();
                 break;
             case "Process Interest":
-                showAlert(Alert.AlertType.INFORMATION, "Process Interest", "Interest processing feature coming soon!");
+                processMonthlyInterest();
                 break;
             case "Generate Statements":
-                showAlert(Alert.AlertType.INFORMATION, "Generate Statements", "Statement generation feature coming soon!");
+                navigationController.showStatementScreen();
                 break;
-            default:
-                showAlert(Alert.AlertType.INFORMATION, menuItem, "This feature is under development!");
+            case "Register Employee":
+                showEmployeeRegistration();
                 break;
         }
     }
@@ -185,12 +200,107 @@ public class EmployeeDashboardScreen {
                 navigationController.showAccountCreation();
                 break;
             case "View Reports":
-                showAlert(Alert.AlertType.INFORMATION, "View Reports", "Reports feature coming soon!");
+                showReports();
                 break;
             case "Process Interest":
-                showAlert(Alert.AlertType.INFORMATION, "Process Interest", "Interest processing feature coming soon!");
+                processMonthlyInterest();
                 break;
         }
+    }
+
+    private void showAllAccounts() {
+        List<Account> accounts = bankingSystem.getAllAccounts();
+        StringBuilder message = new StringBuilder("All Bank Accounts:\n\n");
+
+        if (accounts.isEmpty()) {
+            message.append("No accounts found.");
+        } else {
+            for (Account account : accounts) {
+                message.append("Account: ").append(account.getAccountNumber())
+                        .append(" | Type: ").append(account.getAccountType())
+                        .append(" | Balance: ").append(account.getFormattedBalance())
+                        .append("\n");
+            }
+        }
+
+        showAlert(Alert.AlertType.INFORMATION, "All Accounts", message.toString());
+    }
+
+    private void showTransactionHistory() {
+        List<Account> accounts = bankingSystem.getAllAccounts();
+        StringBuilder message = new StringBuilder("Transaction History:\n\n");
+
+        if (accounts.isEmpty()) {
+            message.append("No accounts found.");
+        } else {
+            boolean hasTransactions = false;
+            for (Account account : accounts) {
+                List<Transaction> transactions = account.getTransactionHistory();
+                if (!transactions.isEmpty()) {
+                    hasTransactions = true;
+                    message.append("Account: ").append(account.getAccountNumber()).append("\n");
+                    for (Transaction transaction : transactions) {
+                        message.append("  ").append(transaction.toString()).append("\n");
+                    }
+                    message.append("\n");
+                }
+            }
+            if (!hasTransactions) {
+                message.append("No transactions found.");
+            }
+        }
+
+        TextArea textArea = new TextArea(message.toString());
+        textArea.setEditable(false);
+        textArea.setWrapText(true);
+        textArea.setPrefSize(600, 400);
+
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Transaction History");
+        alert.setHeaderText("All Transactions");
+        alert.getDialogPane().setContent(textArea);
+        alert.showAndWait();
+    }
+
+    private void processMonthlyInterest() {
+        bankingSystem.processMonthlyInterest();
+        showAlert(Alert.AlertType.INFORMATION, "Interest Processed",
+                "Monthly interest has been processed for all eligible accounts.");
+    }
+
+    private void showReports() {
+        List<Customer> customers = bankingSystem.getAllCustomers();
+        List<Account> accounts = bankingSystem.getAllAccounts();
+
+        StringBuilder report = new StringBuilder();
+        report.append("=== BANKING SYSTEM REPORT ===\n\n");
+        report.append("Total Customers: ").append(customers.size()).append("\n");
+        report.append("Total Accounts: ").append(accounts.size()).append("\n");
+        report.append("Total Balance: P").append(String.format("%.2f", calculateTotalBalance())).append("\n\n");
+
+        report.append("=== CUSTOMER DETAILS ===\n");
+        for (Customer customer : customers) {
+            report.append("• ").append(customer.getDisplayName())
+                    .append(" (").append(customer.getCustomerType()).append(")\n");
+            report.append("  Username: ").append(customer.getUsername()).append("\n");
+            report.append("  Accounts: ").append(customer.getAccounts().size()).append("\n\n");
+        }
+
+        TextArea textArea = new TextArea(report.toString());
+        textArea.setEditable(false);
+        textArea.setWrapText(true);
+        textArea.setPrefSize(600, 400);
+
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Bank Reports");
+        alert.setHeaderText("Comprehensive System Report");
+        alert.getDialogPane().setContent(textArea);
+        alert.showAndWait();
+    }
+
+    private void showEmployeeRegistration() {
+        EmployeeRegistrationScreen registrationScreen = new EmployeeRegistrationScreen(navigationController, bankingSystem);
+        navigationController.showEmployeeRegistrationScreen(registrationScreen.getScene());
     }
 
     private void showAlert(Alert.AlertType type, String title, String message) {

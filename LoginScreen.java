@@ -79,11 +79,16 @@ public class LoginScreen {
         registerButton.setPrefHeight(45);
         registerButton.setMaxWidth(Double.MAX_VALUE);
 
+        Button backButton = new Button("← Back to Main Menu");
+        backButton.getStyleClass().addAll("btn", "btn-outline");
+        backButton.setPrefHeight(45);
+        backButton.setMaxWidth(Double.MAX_VALUE);
+
         // Form layout
         VBox formFields = new VBox(15);
         formFields.getChildren().addAll(
                 formTitle, radioBox, createLabel("Username / Employee ID"), usernameField,
-                createLabel("Password"), passwordField, loginButton, registerButton
+                createLabel("Password"), passwordField, loginButton, registerButton, backButton
         );
 
         formContainer.getChildren().add(formFields);
@@ -99,6 +104,7 @@ public class LoginScreen {
         ));
 
         registerButton.setOnAction(e -> navigationController.showMainMenu());
+        backButton.setOnAction(e -> navigationController.showMainMenu());
 
         scene = new Scene(mainContainer, 900, 700);
         scene.getStylesheets().add("banking-styles.css");
@@ -118,14 +124,24 @@ public class LoginScreen {
 
         try {
             if (userType.equals("customer")) {
-                // Handle customer login
-                navigationController.showCustomerDashboard();
+                // Handle customer login using your BankingSystem logic
+                boolean loginSuccess = bankingSystem.customerLogin(username, password);
+                if (loginSuccess) {
+                    navigationController.showCustomerDashboard();
+                } else {
+                    showAlert(Alert.AlertType.ERROR, "Login Failed", "Invalid customer credentials.");
+                }
             } else {
-                // Handle employee login
-                navigationController.showEmployeeDashboard();
+                // Handle employee login using your BankingSystem logic
+                boolean loginSuccess = bankingSystem.employeeLogin(username, password);
+                if (loginSuccess) {
+                    navigationController.showEmployeeDashboard();
+                } else {
+                    showAlert(Alert.AlertType.ERROR, "Login Failed", "Invalid employee credentials.");
+                }
             }
         } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Login Failed", "Invalid credentials or system error.");
+            showAlert(Alert.AlertType.ERROR, "Login Failed", "System error during login.");
         }
     }
 

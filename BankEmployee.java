@@ -1,4 +1,7 @@
-public class BankEmployee {
+import java.io.Serializable;
+
+public class BankEmployee implements Serializable {
+    private static final long serialVersionUID = 1L;
     private String employeeId;
     private String password;
     private String firstName;

@@ -1,15 +1,17 @@
-// CustomerRegistrationScreen.java
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import java.util.HashMap;
+import java.util.Map;
 
 public class CustomerRegistrationScreen {
     private Scene scene;
     private NavigationController navigationController;
     private BankingSystem bankingSystem;
     private ToggleGroup customerTypeGroup;
+    private VBox formFields;
 
     public CustomerRegistrationScreen(NavigationController navigationController, BankingSystem bankingSystem) {
         this.navigationController = navigationController;
@@ -25,14 +27,14 @@ public class CustomerRegistrationScreen {
         HBox header = createHeader("Register New Customer", "Create customer accounts");
 
         // Back button
-        Button backButton = new Button("← Back");
+        Button backButton = new Button("← Back to Dashboard");
         backButton.getStyleClass().addAll("btn", "btn-outline");
         backButton.setOnAction(e -> navigationController.showEmployeeDashboard());
 
-        // Form content
-        VBox formContent = createRegistrationForm();
+        // Form content wrapped in ScrollPane
+        ScrollPane scrollPane = createScrollableForm();
 
-        VBox content = new VBox(20, backButton, formContent);
+        VBox content = new VBox(20, backButton, scrollPane);
         content.setPadding(new Insets(20));
         content.setAlignment(Pos.TOP_LEFT);
 
@@ -41,6 +43,20 @@ public class CustomerRegistrationScreen {
 
         scene = new Scene(mainLayout, 1000, 800);
         scene.getStylesheets().add("banking-styles.css");
+    }
+
+    private ScrollPane createScrollableForm() {
+        VBox formContent = createRegistrationForm();
+
+        ScrollPane scrollPane = new ScrollPane(formContent);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.getStyleClass().add("scroll-pane");
+        scrollPane.setPadding(new Insets(10));
+
+        return scrollPane;
     }
 
     private HBox createHeader(String title, String subtitle) {
@@ -65,6 +81,7 @@ public class CustomerRegistrationScreen {
         VBox formContainer = new VBox(20);
         formContainer.setMaxWidth(600);
         formContainer.getStyleClass().add("form-container");
+        formContainer.setPadding(new Insets(25));
 
         Label formTitle = new Label("Customer Registration");
         formTitle.getStyleClass().add("form-title");
@@ -73,16 +90,17 @@ public class CustomerRegistrationScreen {
         VBox typeSelection = createCustomerTypeSelection();
 
         // Form fields will be dynamically updated based on customer type
-        VBox formFields = new VBox(15);
+        formFields = new VBox(15);
         formFields.setId("formFields");
 
         // Initial form setup for individual customer
-        updateFormFields(formFields, "individual");
+        updateFormFields("individual");
 
         Button submitButton = new Button("Create Customer");
         submitButton.getStyleClass().addAll("btn", "btn-success");
         submitButton.setPrefHeight(45);
         submitButton.setMaxWidth(Double.MAX_VALUE);
+        submitButton.setOnAction(e -> createCustomer());
 
         formContainer.getChildren().addAll(formTitle, typeSelection, formFields, submitButton);
         return formContainer;
@@ -102,9 +120,8 @@ public class CustomerRegistrationScreen {
         companyRadio.setToggleGroup(customerTypeGroup);
         individualRadio.setSelected(true);
 
-        VBox formFields = new VBox();
-        individualRadio.setOnAction(e -> updateFormFields(formFields, "individual"));
-        companyRadio.setOnAction(e -> updateFormFields(formFields, "company"));
+        individualRadio.setOnAction(e -> updateFormFields("individual"));
+        companyRadio.setOnAction(e -> updateFormFields("company"));
 
         HBox radioBox = new HBox(20, individualRadio, companyRadio);
         typeBox.getChildren().addAll(typeLabel, radioBox);
@@ -112,7 +129,7 @@ public class CustomerRegistrationScreen {
         return typeBox;
     }
 
-    private void updateFormFields(VBox formFields, String customerType) {
+    private void updateFormFields(String customerType) {
         formFields.getChildren().clear();
 
         // Common fields
@@ -202,6 +219,59 @@ public class CustomerRegistrationScreen {
         Label label = new Label(text);
         label.getStyleClass().add("form-label");
         return label;
+    }
+
+    private void createCustomer() {
+        // Get all form data
+        Map<String, String> formData = collectFormData();
+
+        if (formData.get("username").isEmpty() || formData.get("password").isEmpty()) {
+            showAlert(Alert.AlertType.ERROR, "Error", "Please fill in all required fields.");
+            return;
+        }
+
+        String customerType = ((RadioButton) customerTypeGroup.getSelectedToggle()).getText().contains("Individual") ? "individual" : "company";
+
+        try {
+            bankingSystem.createNewCustomerAndSave(customerType, formData.get("username"),
+                    formData.get("password"), formData.get("address"), formData.get("phoneNumber"), formData);
+
+            showAlert(Alert.AlertType.INFORMATION, "Success",
+                    "Customer created successfully!\nUsername: " + formData.get("username") + "\nPassword: " + formData.get("password"));
+            navigationController.showEmployeeDashboard();
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Error", "Failed to create customer: " + e.getMessage());
+        }
+    }
+
+    private Map<String, String> collectFormData() {
+        Map<String, String> data = new HashMap<>();
+
+        for (javafx.scene.Node node : formFields.getChildren()) {
+            if (node instanceof Label) {
+                Label label = (Label) node;
+                String fieldName = label.getText().replace(":", "").toLowerCase().replace(" ", "");
+                int nodeIndex = formFields.getChildren().indexOf(node);
+                if (nodeIndex + 1 < formFields.getChildren().size()) {
+                    javafx.scene.Node nextNode = formFields.getChildren().get(nodeIndex + 1);
+                    if (nextNode instanceof TextField) {
+                        data.put(fieldName, ((TextField) nextNode).getText());
+                    } else if (nextNode instanceof PasswordField) {
+                        data.put(fieldName, ((PasswordField) nextNode).getText());
+                    }
+                }
+            }
+        }
+
+        return data;
+    }
+
+    private void showAlert(Alert.AlertType type, String title, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
     public Scene getScene() {

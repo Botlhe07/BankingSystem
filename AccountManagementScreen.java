@@ -1,13 +1,15 @@
-// AccountManagementScreen.java
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class AccountManagementScreen {
     private Scene scene;
@@ -30,7 +32,13 @@ public class AccountManagementScreen {
         // Back button
         Button backButton = new Button("← Back to Dashboard");
         backButton.getStyleClass().addAll("btn", "btn-outline");
-        backButton.setOnAction(e -> navigationController.showCustomerDashboard());
+        backButton.setOnAction(e -> {
+            if (bankingSystem.getCurrentCustomer() != null) {
+                navigationController.showCustomerDashboard();
+            } else {
+                navigationController.showEmployeeDashboard();
+            }
+        });
 
         // Content
         VBox content = new VBox(20);
@@ -47,8 +55,9 @@ public class AccountManagementScreen {
         HBox actionButtons = new HBox(15);
         actionButtons.setAlignment(Pos.CENTER_LEFT);
 
-        Button viewDetailsButton = new Button("View Details");
+        Button viewDetailsButton = new Button("View Account Details");
         viewDetailsButton.getStyleClass().addAll("btn", "btn-primary");
+        viewDetailsButton.setOnAction(e -> viewAccountDetails(accountsTable));
 
         Button depositButton = new Button("Deposit");
         depositButton.getStyleClass().addAll("btn", "btn-success");
@@ -60,8 +69,13 @@ public class AccountManagementScreen {
 
         Button transactionHistoryButton = new Button("Transaction History");
         transactionHistoryButton.getStyleClass().addAll("btn", "btn-secondary");
+        transactionHistoryButton.setOnAction(e -> showTransactionHistory(accountsTable));
 
-        actionButtons.getChildren().addAll(viewDetailsButton, depositButton, withdrawButton, transactionHistoryButton);
+        Button refreshButton = new Button("Refresh");
+        refreshButton.getStyleClass().addAll("btn", "btn-outline");
+        refreshButton.setOnAction(e -> refreshTable(accountsTable));
+
+        actionButtons.getChildren().addAll(viewDetailsButton, depositButton, withdrawButton, transactionHistoryButton, refreshButton);
 
         content.getChildren().addAll(backButton, tableTitle, accountsTable, actionButtons);
         mainLayout.setTop(header);
@@ -93,15 +107,7 @@ public class AccountManagementScreen {
         TableView<Account> table = new TableView<>();
         table.getStyleClass().add("table-view");
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-        // Sample data - you would replace this with real data from your BankingSystem
-        /*
-        table.getItems().addAll(
-            new Account("ACC1001", "Savings", 1500.00),
-            new Account("ACC1002", "Cheque", 2500.00),
-            new Account("ACC1003", "Investment", 5000.00)
-        );
-        */
+        table.setPrefHeight(400);
 
         // Create columns
         TableColumn<Account, String> accountNumberCol = new TableColumn<>("Account Number");
@@ -110,26 +116,138 @@ public class AccountManagementScreen {
         TableColumn<Account, String> accountTypeCol = new TableColumn<>("Account Type");
         accountTypeCol.setCellValueFactory(new PropertyValueFactory<>("accountType"));
 
-        TableColumn<Account, Double> balanceCol = new TableColumn<>("Balance");
-        balanceCol.setCellValueFactory(new PropertyValueFactory<>("balance"));
-        balanceCol.setCellFactory(col -> new TableCell<Account, Double>() {
-            @Override
-            protected void updateItem(Double amount, boolean empty) {
-                super.updateItem(amount, empty);
-                if (empty || amount == null) {
-                    setText(null);
-                } else {
-                    setText(String.format("$%.2f", amount));
-                }
-            }
+        TableColumn<Account, String> balanceCol = new TableColumn<>("Balance (BWP)");
+        balanceCol.setCellValueFactory(cellData -> {
+            Account account = cellData.getValue();
+            return new javafx.beans.property.SimpleStringProperty(account.getFormattedBalance());
         });
 
-        TableColumn<Account, String> statusCol = new TableColumn<>("Status");
-        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        TableColumn<Account, String> branchCol = new TableColumn<>("Branch");
+        branchCol.setCellValueFactory(new PropertyValueFactory<>("branch"));
 
-        table.getColumns().addAll(accountNumberCol, accountTypeCol, balanceCol, statusCol);
+        TableColumn<Account, String> signatoriesCol = new TableColumn<>("Signatories");
+        signatoriesCol.setCellValueFactory(cellData -> {
+            Account account = cellData.getValue();
+            int signatoryCount = account.getSignatories().size();
+            return new javafx.beans.property.SimpleStringProperty(String.valueOf(signatoryCount));
+        });
+
+        TableColumn<Account, String> transactionsCol = new TableColumn<>("Transactions");
+        transactionsCol.setCellValueFactory(cellData -> {
+            Account account = cellData.getValue();
+            int transactionCount = account.getTransactionHistory().size();
+            return new javafx.beans.property.SimpleStringProperty(String.valueOf(transactionCount));
+        });
+
+        table.getColumns().addAll(accountNumberCol, accountTypeCol, balanceCol, branchCol, signatoriesCol, transactionsCol);
+
+        // Load data
+        refreshTable(table);
 
         return table;
+    }
+
+    private void refreshTable(TableView<Account> table) {
+        List<Account> accounts;
+        if (bankingSystem.getCurrentCustomer() != null) {
+            accounts = bankingSystem.getCurrentCustomerAccounts();
+        } else {
+            accounts = bankingSystem.getAllAccounts();
+        }
+
+        ObservableList<Account> accountData = FXCollections.observableArrayList(accounts);
+        table.setItems(accountData);
+
+        // Show message if no accounts
+        if (accounts.isEmpty()) {
+            showAlert(Alert.AlertType.INFORMATION, "No Accounts",
+                    bankingSystem.getCurrentCustomer() != null ?
+                            "You don't have any accounts yet." :
+                            "No accounts found in the system.");
+        }
+    }
+
+    private void viewAccountDetails(TableView<Account> table) {
+        Account selectedAccount = table.getSelectionModel().getSelectedItem();
+        if (selectedAccount == null) {
+            showAlert(Alert.AlertType.ERROR, "Error", "Please select an account first.");
+            return;
+        }
+
+        StringBuilder details = new StringBuilder();
+        details.append("=== ACCOUNT DETAILS ===\n\n");
+        details.append("Account Number: ").append(selectedAccount.getAccountNumber()).append("\n");
+        details.append("Account Type: ").append(selectedAccount.getAccountType()).append("\n");
+        details.append("Balance: ").append(selectedAccount.getFormattedBalance()).append("\n");
+        details.append("Branch: ").append(selectedAccount.getBranch()).append("\n");
+        details.append("Number of Signatories: ").append(selectedAccount.getSignatories().size()).append("\n");
+
+        List<String> signatories = selectedAccount.getSignatories();
+        if (!signatories.isEmpty()) {
+            details.append("\nAuthorized Signatories:\n");
+            for (String signatory : signatories) {
+                details.append("  • ").append(signatory).append("\n");
+            }
+        } else {
+            details.append("\nNo signatories assigned to this account.\n");
+        }
+
+        details.append("\nNumber of Transactions: ").append(selectedAccount.getTransactionHistory().size());
+
+        showTextAlert("Account Details - " + selectedAccount.getAccountNumber(), details.toString());
+    }
+
+    private void showTransactionHistory(TableView<Account> table) {
+        Account selectedAccount = table.getSelectionModel().getSelectedItem();
+        if (selectedAccount == null) {
+            showAlert(Alert.AlertType.ERROR, "Error", "Please select an account first.");
+            return;
+        }
+
+        List<Transaction> transactions = selectedAccount.getTransactionHistory();
+        StringBuilder history = new StringBuilder();
+        history.append("=== TRANSACTION HISTORY ===\n\n");
+        history.append("Account: ").append(selectedAccount.getAccountNumber()).append("\n");
+        history.append("Account Type: ").append(selectedAccount.getAccountType()).append("\n");
+        history.append("Current Balance: ").append(selectedAccount.getFormattedBalance()).append("\n\n");
+
+        if (transactions.isEmpty()) {
+            history.append("No transactions found for this account.");
+        } else {
+            history.append("Recent Transactions (Newest First):\n");
+            history.append("----------------------------------------\n");
+
+            // Show transactions in reverse order (newest first)
+            List<Transaction> reversedTransactions = new ArrayList<>(transactions);
+            Collections.reverse(reversedTransactions);
+
+            for (Transaction transaction : reversedTransactions) {
+                history.append(transaction.toString()).append("\n\n");
+            }
+        }
+
+        showTextAlert("Transaction History - " + selectedAccount.getAccountNumber(), history.toString());
+    }
+
+    private void showTextAlert(String title, String content) {
+        TextArea textArea = new TextArea(content);
+        textArea.setEditable(false);
+        textArea.setWrapText(true);
+        textArea.setPrefSize(600, 400);
+
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.getDialogPane().setContent(textArea);
+        alert.showAndWait();
+    }
+
+    private void showAlert(Alert.AlertType type, String title, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
     public Scene getScene() {

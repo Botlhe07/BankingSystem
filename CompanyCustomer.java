@@ -1,12 +1,15 @@
-public class CompanyCustomer extends Customer {
+import java.io.Serializable;
+
+public class CompanyCustomer extends Customer implements Serializable {
+    private static final long serialVersionUID = 1L;
     private String companyName;
     private String registrationNumber;
     private String contactName;
     private String companyAddress;
 
-    public CompanyCustomer(String username, String password, String companyName, String address,
-                           String phoneNumber, String registrationNumber, String contactName,
-                           String companyAddress) {
+    public CompanyCustomer(String username, String password, String companyName,
+                           String address, String phoneNumber, String registrationNumber,
+                           String contactName, String companyAddress) {
         super(username, password, address, phoneNumber);
         this.companyName = companyName;
         this.registrationNumber = registrationNumber;
@@ -16,7 +19,7 @@ public class CompanyCustomer extends Customer {
 
     @Override
     public String getDisplayName() {
-        return companyName;
+        return companyName + " (Company)";
     }
 
     @Override

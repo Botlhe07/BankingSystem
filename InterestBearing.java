@@ -1,3 +1,5 @@
-public interface InterestBearing {
+import java.io.Serializable;
+
+public interface InterestBearing extends Serializable {
     double calculateInterest();
 }

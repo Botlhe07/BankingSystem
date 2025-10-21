@@ -1,6 +1,8 @@
+import java.io.Serializable;
 import java.util.*;
 
-public abstract class Customer {
+public abstract class Customer implements Serializable {
+    private static final long serialVersionUID = 1L;
     protected String username;
     protected String password;
     protected String address;

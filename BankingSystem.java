@@ -1,4 +1,5 @@
 import java.util.*;
+import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -7,799 +8,395 @@ public class BankingSystem {
     private List<BankEmployee> employees;
     private Customer currentCustomer;
     private BankEmployee currentEmployee;
-    private Scanner scanner;
-    private DatabaseManager dbManager;
+    private static final String DATA_FILE = "banking_data.dat";
 
     public BankingSystem() {
         this.customers = new ArrayList<>();
         this.employees = new ArrayList<>();
-        this.scanner = new Scanner(System.in);
-        this.dbManager = new DatabaseManager();
+        loadData();
     }
 
     public void initializeSampleData() {
-        // No sample employees or customers - everything will be created by users
-        System.out.println("Banking System initialized. No pre-existing data.");
-    }
-
-    public void run() {
-        System.out.println("==========================================");
-        System.out.println("    WELCOME TO THE BANKING SYSTEM");
-        System.out.println("==========================================");
-
-        boolean running = true;
-
-        while (running) {
-            if (currentCustomer == null && currentEmployee == null) {
-                showMainMenu();
-            } else if (currentCustomer != null) {
-                showCustomerMenu();
-            } else if (currentEmployee != null) {
-                showEmployeeMenu();
-            }
+        if (customers.isEmpty() && employees.isEmpty()) {
+            System.out.println("Banking System initialized with no existing data.");
+        } else {
+            System.out.println("Banking System initialized with existing data: " +
+                    customers.size() + " customers, " + employees.size() + " employees");
         }
     }
 
-    private void showMainMenu() {
-        System.out.println("\n=== MAIN MENU ===");
-        System.out.println("1. Login");
-        System.out.println("2. Register New Bank Employee");
-        System.out.println("3. Exit");
-        System.out.print("Please select an option: ");
-
-        int choice = getIntInput();
-
-        switch (choice) {
-            case 1:
-                showLoginTypeMenu();
-                break;
-            case 2:
-                registerNewEmployee();
-                break;
-            case 3:
-                saveAllData();
-                System.out.println("Thank you for using the Banking System. Goodbye!");
-                System.exit(0);
-                break;
-            default:
-                System.out.println("Invalid option. Please try again.");
+    // === DATA PERSISTENCE METHODS ===
+    @SuppressWarnings("unchecked")
+    public void loadData() {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(DATA_FILE))) {
+            employees = (List<BankEmployee>) ois.readObject();
+            customers = (List<Customer>) ois.readObject();
+            System.out.println("Data loaded successfully: " + customers.size() + " customers, " + employees.size() + " employees");
+        } catch (FileNotFoundException e) {
+            System.out.println("No existing data file found. Starting with empty system.");
+        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("Error loading data: " + e.getMessage());
+            employees = new ArrayList<>();
+            customers = new ArrayList<>();
         }
     }
 
-    private void showLoginTypeMenu() {
-        System.out.println("\n=== LOGIN TYPE ===");
-        System.out.println("1. Customer Login");
-        System.out.println("2. Bank Employee Login");
-        System.out.println("3. Back to Main Menu");
-        System.out.print("Please select an option: ");
-
-        int choice = getIntInput();
-
-        switch (choice) {
-            case 1:
-                customerLogin();
-                break;
-            case 2:
-                employeeLogin();
-                break;
-            case 3:
-                return;
-            default:
-                System.out.println("Invalid option. Please try again.");
+    public void saveAllData() {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(DATA_FILE))) {
+            oos.writeObject(employees);
+            oos.writeObject(customers);
+            System.out.println("Data saved successfully: " + customers.size() + " customers, " + employees.size() + " employees");
+        } catch (IOException e) {
+            System.out.println("Error saving data: " + e.getMessage());
         }
     }
 
-    private void registerNewEmployee() {
-        System.out.println("\n=== REGISTER NEW BANK EMPLOYEE ===");
-
-        System.out.print("Employee ID: ");
-        String empId = scanner.nextLine();
-
-        // Check if employee ID already exists
-        for (BankEmployee employee : employees) {
-            if (employee.getEmployeeId().equals(empId)) {
-                System.out.println("Employee ID already exists. Please choose a different one.");
-                return;
-            }
-        }
-
-        System.out.print("Password: ");
-        String password = scanner.nextLine();
-
-        // Password validation
-        if (password.length() < 8 || !password.matches(".*[a-zA-Z].*") || !password.matches(".*[0-9].*")) {
-            System.out.println("Password must be at least 8 characters with both letters and numbers");
-            return;
-        }
-
-        System.out.print("First Name: ");
-        String firstName = scanner.nextLine();
-        System.out.print("Last Name: ");
-        String lastName = scanner.nextLine();
-
-        BankEmployee newEmployee = new BankEmployee(empId, password, firstName, lastName);
-        employees.add(newEmployee);
-
-        System.out.println("\n==========================================");
-        System.out.println("  EMPLOYEE REGISTERED SUCCESSFULLY!");
-        System.out.println("==========================================");
-        System.out.println("Employee ID: " + empId);
-        System.out.println("Password: " + password);
-        System.out.println("Name: " + firstName + " " + lastName);
-        System.out.println("You can now login with these credentials.");
+    // === AUTOSAVE METHODS ===
+    public void autoSave() {
+        saveAllData();
     }
 
-    private void customerLogin() {
-        System.out.println("\n=== CUSTOMER LOGIN ===");
+    public void createNewEmployeeAndSave(String employeeId, String password, String firstName, String lastName) {
+        createNewEmployee(employeeId, password, firstName, lastName);
+        autoSave();
+    }
 
-        if (customers.isEmpty()) {
-            System.out.println("No customers registered yet.");
-            System.out.println("Please ask a bank employee to create your customer account first.");
-            return;
-        }
+    public void createNewCustomerAndSave(String customerType, String username, String password, String address,
+                                         String phoneNumber, Map<String, String> additionalInfo) {
+        createNewCustomer(customerType, username, password, address, phoneNumber, additionalInfo);
+        autoSave();
+    }
 
-        System.out.print("Username: ");
-        String username = scanner.nextLine();
-        System.out.print("Password: ");
-        String password = scanner.nextLine();
+    public void createAccountAndSave(String username, String accountType, String branch,
+                                     Map<String, String> additionalInfo, List<String> signatories) {
+        createAccountForCustomer(username, accountType, branch, additionalInfo, signatories);
+        autoSave();
+    }
 
+    // === LOGIN METHODS ===
+    public boolean customerLogin(String username, String password) {
         for (Customer customer : customers) {
             if (customer.authenticate(username, password)) {
                 currentCustomer = customer;
-                System.out.println("\n==========================================");
-                System.out.println("  LOGIN SUCCESSFUL! Welcome, " + customer.getDisplayName());
-                System.out.println("==========================================");
-                return;
+                currentEmployee = null;
+                System.out.println("Customer login successful: " + customer.getDisplayName());
+                return true;
             }
         }
-
-        System.out.println("Invalid username or password. Please try again.");
+        System.out.println("Customer login failed for: " + username);
+        return false;
     }
 
-    private void employeeLogin() {
-        System.out.println("\n=== BANK EMPLOYEE LOGIN ===");
-
-        if (employees.isEmpty()) {
-            System.out.println("No bank employees registered yet.");
-            System.out.println("Please register a new bank employee first.");
-            return;
-        }
-
-        System.out.print("Employee ID: ");
-        String empId = scanner.nextLine();
-        System.out.print("Password: ");
-        String password = scanner.nextLine();
-
+    public boolean employeeLogin(String employeeId, String password) {
         for (BankEmployee employee : employees) {
-            if (employee.authenticate(empId, password)) {
+            if (employee.authenticate(employeeId, password)) {
                 currentEmployee = employee;
-                System.out.println("\n==========================================");
-                System.out.println("  LOGIN SUCCESSFUL! Welcome, " + employee.getFirstName() + " " + employee.getLastName());
-                System.out.println("==========================================");
-                return;
+                currentCustomer = null;
+                System.out.println("Employee login successful: " + employee.getFirstName() + " " + employee.getLastName());
+                return true;
             }
         }
-
-        System.out.println("Invalid employee ID or password. Please try again.");
+        System.out.println("Employee login failed for: " + employeeId);
+        return false;
     }
 
-    private void showCustomerMenu() {
-        System.out.println("\n=== CUSTOMER DASHBOARD ===");
-        System.out.println("Welcome, " + currentCustomer.getDisplayName() + "!");
-        System.out.println("1. View All My Accounts");
-        System.out.println("2. View Account Balance");
-        System.out.println("3. Deposit Funds");
-        System.out.println("4. Withdraw Funds");
-        System.out.println("5. View Transaction History");
-        System.out.println("6. Logout");
-        System.out.print("Please select an option: ");
-
-        int choice = getIntInput();
-
-        switch (choice) {
-            case 1:
-                viewAllAccounts();
-                break;
-            case 2:
-                viewAccountBalance();
-                break;
-            case 3:
-                depositFunds();
-                break;
-            case 4:
-                withdrawFunds();
-                break;
-            case 5:
-                viewTransactionHistory();
-                break;
-            case 6:
-                logout();
-                break;
-            default:
-                System.out.println("Invalid option. Please try again.");
+    public void logout() {
+        if (currentCustomer != null) {
+            System.out.println("Logging out customer: " + currentCustomer.getDisplayName());
         }
+        if (currentEmployee != null) {
+            System.out.println("Logging out employee: " + currentEmployee.getFirstName() + " " + currentEmployee.getLastName());
+        }
+        currentCustomer = null;
+        currentEmployee = null;
+        saveAllData();
     }
 
-    private void showEmployeeMenu() {
-        System.out.println("\n=== EMPLOYEE DASHBOARD ===");
-        System.out.println("Welcome, " + currentEmployee.getFirstName() + " " + currentEmployee.getLastName() + "!");
-        System.out.println("1. Create New Customer");
-        System.out.println("2. Open New Account");
-        System.out.println("3. View All Customers");
-        System.out.println("4. View Customer Accounts");
-        System.out.println("5. View Customer Transaction History");
-        System.out.println("6. Process Monthly Interest");
-        System.out.println("7. Generate Customer Statement");
-        System.out.println("8. Register New Bank Employee");
-        System.out.println("9. Logout");
-        System.out.print("Please select an option: ");
-
-        int choice = getIntInput();
-
-        switch (choice) {
-            case 1:
-                createNewCustomer();
-                break;
-            case 2:
-                openNewAccount();
-                break;
-            case 3:
-                viewAllCustomers();
-                break;
-            case 4:
-                viewCustomerAccounts();
-                break;
-            case 5:
-                viewCustomerTransactionHistory();
-                break;
-            case 6:
-                processMonthlyInterest();
-                break;
-            case 7:
-                generateCustomerStatement();
-                break;
-            case 8:
-                registerNewEmployee();
-                break;
-            case 9:
-                logout();
-                break;
-            default:
-                System.out.println("Invalid option. Please try again.");
-        }
+    // === EMPLOYEE MANAGEMENT ===
+    public void createNewEmployee(String employeeId, String password, String firstName, String lastName) {
+        BankEmployee newEmployee = new BankEmployee(employeeId, password, firstName, lastName);
+        employees.add(newEmployee);
+        System.out.println("New employee created: " + employeeId);
     }
 
-    // All other methods remain the same (createNewCustomer, openNewAccount, viewAllAccounts, etc.)
-    // ... [rest of your methods unchanged]
-
-    private void createNewCustomer() {
-        System.out.println("\n=== CREATE NEW CUSTOMER ===");
-        System.out.println("1. Individual Customer");
-        System.out.println("2. Company Customer");
-        System.out.print("Select customer type: ");
-
-        int customerType = getIntInput();
-
-        System.out.print("Username: ");
-        String username = scanner.nextLine();
-        System.out.print("Password: ");
-        String password = scanner.nextLine();
-
-        // Password validation
-        if (password.length() < 8 || !password.matches(".*[a-zA-Z].*") || !password.matches(".*[0-9].*")) {
-            System.out.println("Password must be at least 8 characters with both letters and numbers");
-            return;
+    public boolean employeeIdExists(String employeeId) {
+        for (BankEmployee employee : employees) {
+            if (employee.getEmployeeId().equals(employeeId)) {
+                return true;
+            }
         }
+        return false;
+    }
 
-        if (customerType == 1) {
-            System.out.print("First Name: ");
-            String firstName = scanner.nextLine();
-            System.out.print("Last Name: ");
-            String lastName = scanner.nextLine();
-            System.out.print("Address: ");
-            String address = scanner.nextLine();
-            System.out.print("Phone Number: ");
-            String phoneNumber = scanner.nextLine();
-            System.out.print("Date of Birth (YYYY-MM-DD): ");
-            String dateOfBirth = scanner.nextLine();
-            System.out.print("Government ID: ");
-            String governmentId = scanner.nextLine();
-            System.out.print("Source of Income: ");
-            String sourceOfIncome = scanner.nextLine();
+    // === CUSTOMER MANAGEMENT ===
+    public void createNewCustomer(String customerType, String username, String password, String address,
+                                  String phoneNumber, Map<String, String> additionalInfo) {
+        Customer newCustomer;
 
-            IndividualCustomer newCustomer = new IndividualCustomer(username, password, firstName, lastName,
-                    address, phoneNumber, dateOfBirth, governmentId, sourceOfIncome);
-            customers.add(newCustomer);
-            System.out.println("Individual customer created successfully!");
-            System.out.println("Username: " + username + " | Password: " + password);
-
-        } else if (customerType == 2) {
-            System.out.print("Company Name: ");
-            String companyName = scanner.nextLine();
-            System.out.print("Address: ");
-            String address = scanner.nextLine();
-            System.out.print("Phone Number: ");
-            String phoneNumber = scanner.nextLine();
-            System.out.print("Company Registration Number: ");
-            String registrationNumber = scanner.nextLine();
-            System.out.print("Company Contact Name: ");
-            String contactName = scanner.nextLine();
-            System.out.print("Company Address: ");
-            String companyAddress = scanner.nextLine();
-
-            CompanyCustomer newCustomer = new CompanyCustomer(username, password, companyName,
-                    address, phoneNumber, registrationNumber, contactName, companyAddress);
-            customers.add(newCustomer);
-            System.out.println("Company customer created successfully!");
-            System.out.println("Username: " + username + " | Password: " + password);
-
+        if (customerType.equals("individual")) {
+            newCustomer = new IndividualCustomer(username, password,
+                    additionalInfo.get("firstName"), additionalInfo.get("lastName"),
+                    address, phoneNumber, additionalInfo.get("dateOfBirth"),
+                    additionalInfo.get("governmentId"), additionalInfo.get("sourceOfIncome"));
         } else {
-            System.out.println("Invalid customer type.");
+            newCustomer = new CompanyCustomer(username, password, additionalInfo.get("companyName"),
+                    address, phoneNumber, additionalInfo.get("registrationNumber"),
+                    additionalInfo.get("contactName"), additionalInfo.get("companyAddress"));
         }
+
+        customers.add(newCustomer);
+        System.out.println("New customer created: " + username + " (" + customerType + ")");
     }
 
-    private void openNewAccount() {
-        System.out.println("\n=== OPEN NEW ACCOUNT ===");
+    public boolean customerUsernameExists(String username) {
+        for (Customer customer : customers) {
+            if (customer.getUsername().equals(username)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-        if (customers.isEmpty()) {
-            System.out.println("No customers available. Please create a customer first.");
+    public List<Customer> getAllCustomers() {
+        return new ArrayList<>(customers);
+    }
+
+    // === ACCOUNT MANAGEMENT WITH SIGNATORIES ===
+    public void createAccountForCustomer(String username, String accountType, String branch,
+                                         Map<String, String> additionalInfo, List<String> signatories) {
+        Customer customer = findCustomerByUsername(username);
+        if (customer == null) {
+            System.out.println("Customer not found: " + username);
             return;
         }
-
-        System.out.println("Select a customer:");
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
-            System.out.println((i + 1) + ". " + customer.getDisplayName());
-        }
-
-        System.out.print("Enter customer number: ");
-        int customerIndex = getIntInput() - 1;
-
-        if (customerIndex < 0 || customerIndex >= customers.size()) {
-            System.out.println("Invalid customer selection.");
-            return;
-        }
-
-        Customer selectedCustomer = customers.get(customerIndex);
-
-        System.out.println("Select account type:");
-        System.out.println("1. Savings Account");
-        System.out.println("2. Investment Account");
-        System.out.println("3. Cheque Account");
-        System.out.print("Enter account type: ");
-
-        int accountType = getIntInput();
-        System.out.print("Branch: ");
-        String branch = scanner.nextLine();
 
         Account newAccount = null;
+        String accountNumber = generateAccountNumber();
 
         switch (accountType) {
-            case 1:
-                newAccount = new SavingsAccount(generateAccountNumber(), 0.0, branch);
+            case "Savings":
+                newAccount = new SavingsAccount(accountNumber, 0.0, branch);
                 break;
-            case 2:
-                System.out.print("Initial deposit (minimum $500): $");
-                double initialDeposit = getDoubleInput();
-                if (initialDeposit < 500.0) {
-                    System.out.println("Investment account requires a minimum of $500.");
-                    return;
+            case "Investment":
+                double initialDeposit = 0.0;
+                try {
+                    initialDeposit = Double.parseDouble(additionalInfo.getOrDefault("initialDeposit", "0"));
+                } catch (NumberFormatException e) {
+                    initialDeposit = 0.0;
                 }
-                newAccount = new InvestmentAccount(generateAccountNumber(), initialDeposit, branch);
+                newAccount = new InvestmentAccount(accountNumber, initialDeposit, branch);
                 break;
-            case 3:
-                System.out.print("Employer Name: ");
-                String employerName = scanner.nextLine();
-                System.out.print("Employer Address: ");
-                String employerAddress = scanner.nextLine();
-                newAccount = new ChequeAccount(generateAccountNumber(), 0.0, branch, employerName, employerAddress);
+            case "Cheque":
+                newAccount = new ChequeAccount(accountNumber, 0.0, branch,
+                        additionalInfo.get("employerName"), additionalInfo.get("employerAddress"));
                 break;
             default:
-                System.out.println("Invalid account type.");
+                System.out.println("Unknown account type: " + accountType);
                 return;
         }
 
-        selectedCustomer.addAccount(newAccount);
-        System.out.println("Account created successfully. Account Number: " + newAccount.getAccountNumber());
-    }
-
-    private void viewAllAccounts() {
-        System.out.println("\n=== YOUR ACCOUNTS ===");
-        List<Account> accounts = currentCustomer.getAccounts();
-
-        if (accounts.isEmpty()) {
-            System.out.println("You don't have any accounts yet.");
-            return;
-        }
-
-        for (int i = 0; i < accounts.size(); i++) {
-            Account account = accounts.get(i);
-            System.out.println((i + 1) + ". " + account.getAccountNumber() + " - " +
-                    account.getAccountType() + " - Balance: $" + account.getBalance());
+        if (newAccount != null) {
+            // Add signatories to the account
+            for (String signatory : signatories) {
+                if (signatory != null && !signatory.trim().isEmpty()) {
+                    newAccount.addSignatory(signatory);
+                }
+            }
+            customer.addAccount(newAccount);
+            System.out.println("Account created: " + accountNumber + " for customer: " + username);
         }
     }
 
-    // ... [Include all your other existing methods here unchanged]
-    // viewAccountBalance, depositFunds, withdrawFunds, viewTransactionHistory,
-    // viewAllCustomers, viewCustomerAccounts, viewCustomerTransactionHistory,
-    // processMonthlyInterest, generateCustomerStatement, logout, saveAllData,
-    // generateAccountNumber, getIntInput, getDoubleInput
-
-    private void viewAccountBalance() {
-        List<Account> accounts = currentCustomer.getAccounts();
-
-        if (accounts.isEmpty()) {
-            System.out.println("You don't have any accounts yet.");
-            return;
-        }
-
-        System.out.println("\nSelect an account to view balance:");
-        for (int i = 0; i < accounts.size(); i++) {
-            Account account = accounts.get(i);
-            System.out.println((i + 1) + ". " + account.getAccountNumber() + " - " + account.getAccountType());
-        }
-
-        System.out.print("Enter account number: ");
-        int accountIndex = getIntInput() - 1;
-
-        if (accountIndex >= 0 && accountIndex < accounts.size()) {
-            Account selectedAccount = accounts.get(accountIndex);
-            System.out.println("Account Balance: $" + selectedAccount.getBalance());
-        } else {
-            System.out.println("Invalid account selection.");
-        }
-    }
-
-    private void depositFunds() {
-        List<Account> accounts = currentCustomer.getAccounts();
-
-        if (accounts.isEmpty()) {
-            System.out.println("You don't have any accounts yet.");
-            return;
-        }
-
-        System.out.println("\nSelect an account to deposit to:");
-        for (int i = 0; i < accounts.size(); i++) {
-            Account account = accounts.get(i);
-            System.out.println((i + 1) + ". " + account.getAccountNumber() + " - " + account.getAccountType());
-        }
-
-        System.out.print("Enter account number: ");
-        int accountIndex = getIntInput() - 1;
-
-        if (accountIndex >= 0 && accountIndex < accounts.size()) {
-            Account selectedAccount = accounts.get(accountIndex);
-            System.out.print("Enter amount to deposit: $");
-            double amount = getDoubleInput();
-
-            if (amount > 0) {
-                selectedAccount.deposit(amount);
-                System.out.println("Deposit successful. New balance: $" + selectedAccount.getBalance());
+    // === TRANSACTION METHODS WITH SIGNATORY SUPPORT ===
+    public boolean depositToAccount(String accountNumber, double amount, String signatory) {
+        Account account = findAccountByNumber(accountNumber);
+        if (account != null) {
+            if (account.hasSignatory(signatory)) {
+                account.deposit(amount);
+                // Create transaction with signatory
+                Transaction transaction = new Transaction("DEPOSIT", amount, "Deposit to account", signatory);
+                account.getTransactionHistory().add(transaction);
+                System.out.println("Deposit successful: P" + amount + " to account " + accountNumber + " by " + signatory);
+                saveAllData(); // Save immediately after transaction
+                return true;
             } else {
-                System.out.println("Invalid amount. Please enter a positive value.");
+                System.out.println("Deposit failed: Signatory " + signatory + " not authorized for account " + accountNumber);
             }
         } else {
-            System.out.println("Invalid account selection.");
+            System.out.println("Deposit failed: Account not found - " + accountNumber);
         }
+        return false;
     }
 
-    private void withdrawFunds() {
-        List<Account> accounts = currentCustomer.getAccounts();
-
-        if (accounts.isEmpty()) {
-            System.out.println("You don't have any accounts yet.");
-            return;
-        }
-
-        System.out.println("\nSelect an account to withdraw from:");
-        for (int i = 0; i < accounts.size(); i++) {
-            Account account = accounts.get(i);
-            System.out.println((i + 1) + ". " + account.getAccountNumber() + " - " + account.getAccountType());
-        }
-
-        System.out.print("Enter account number: ");
-        int accountIndex = getIntInput() - 1;
-
-        if (accountIndex >= 0 && accountIndex < accounts.size()) {
-            Account selectedAccount = accounts.get(accountIndex);
-
-            if (selectedAccount instanceof SavingsAccount) {
-                System.out.println("Withdrawals are not allowed from Savings accounts.");
-                return;
-            }
-
-            System.out.print("Enter amount to withdraw: $");
-            double amount = getDoubleInput();
-
-            if (amount > 0) {
-                if (selectedAccount.withdraw(amount)) {
-                    System.out.println("Withdrawal successful. New balance: $" + selectedAccount.getBalance());
+    public boolean withdrawFromAccount(String accountNumber, double amount, String signatory) {
+        Account account = findAccountByNumber(accountNumber);
+        if (account != null) {
+            if (account.hasSignatory(signatory)) {
+                if (account.withdraw(amount)) {
+                    // Create transaction with signatory
+                    Transaction transaction = new Transaction("WITHDRAWAL", amount, "Withdrawal from account", signatory);
+                    account.getTransactionHistory().add(transaction);
+                    System.out.println("Withdrawal successful: P" + amount + " from account " + accountNumber + " by " + signatory);
+                    saveAllData(); // Save immediately after transaction
+                    return true;
                 } else {
-                    System.out.println("Insufficient funds or invalid amount.");
+                    System.out.println("Withdrawal failed: Insufficient funds in account " + accountNumber);
                 }
             } else {
-                System.out.println("Invalid amount. Please enter a positive value.");
+                System.out.println("Withdrawal failed: Signatory " + signatory + " not authorized for account " + accountNumber);
             }
         } else {
-            System.out.println("Invalid account selection.");
+            System.out.println("Withdrawal failed: Account not found - " + accountNumber);
         }
+        return false;
     }
 
-    private void viewTransactionHistory() {
-        List<Account> accounts = currentCustomer.getAccounts();
-
-        if (accounts.isEmpty()) {
-            System.out.println("You don't have any accounts yet.");
-            return;
+    // === SIGNATORY MANAGEMENT ===
+    public boolean addSignatoryToAccount(String accountNumber, String signatoryName) {
+        Account account = findAccountByNumber(accountNumber);
+        if (account != null) {
+            account.addSignatory(signatoryName);
+            saveAllData();
+            System.out.println("Signatory added: " + signatoryName + " to account " + accountNumber);
+            return true;
         }
+        return false;
+    }
 
-        System.out.println("\nSelect an account to view transaction history:");
-        for (int i = 0; i < accounts.size(); i++) {
-            Account account = accounts.get(i);
-            System.out.println((i + 1) + ". " + account.getAccountNumber() + " - " + account.getAccountType());
+    public boolean removeSignatoryFromAccount(String accountNumber, String signatoryName) {
+        Account account = findAccountByNumber(accountNumber);
+        if (account != null) {
+            account.removeSignatory(signatoryName);
+            saveAllData();
+            System.out.println("Signatory removed: " + signatoryName + " from account " + accountNumber);
+            return true;
         }
+        return false;
+    }
 
-        System.out.print("Enter account number: ");
-        int accountIndex = getIntInput() - 1;
+    public List<String> getAccountSignatories(String accountNumber) {
+        Account account = findAccountByNumber(accountNumber);
+        if (account != null) {
+            return account.getSignatories();
+        }
+        return new ArrayList<>();
+    }
 
-        if (accountIndex >= 0 && accountIndex < accounts.size()) {
-            Account selectedAccount = accounts.get(accountIndex);
-            List<Transaction> transactions = selectedAccount.getTransactionHistory();
+    // === ACCOUNT FINDING METHODS ===
+    private Customer findCustomerByUsername(String username) {
+        for (Customer customer : customers) {
+            if (customer.getUsername().equals(username)) {
+                return customer;
+            }
+        }
+        return null;
+    }
 
-            System.out.println("\nTransaction History for Account: " + selectedAccount.getAccountNumber());
-            if (transactions.isEmpty()) {
-                System.out.println("No transactions found.");
-            } else {
-                for (Transaction transaction : transactions) {
-                    System.out.println(transaction);
+    private Account findAccountByNumber(String accountNumber) {
+        for (Customer customer : customers) {
+            for (Account account : customer.getAccounts()) {
+                if (account.getAccountNumber().equals(accountNumber)) {
+                    return account;
                 }
             }
-        } else {
-            System.out.println("Invalid account selection.");
         }
+        return null;
     }
 
-    private void viewAllCustomers() {
-        System.out.println("\n=== ALL CUSTOMERS ===");
-
-        if (customers.isEmpty()) {
-            System.out.println("No customers found.");
-            return;
-        }
-
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
-            System.out.println((i + 1) + ". " + customer.getDisplayName() + " - " + customer.getCustomerType());
-        }
-    }
-
-    private void viewCustomerAccounts() {
-        System.out.println("\n=== VIEW CUSTOMER ACCOUNTS ===");
-
-        if (customers.isEmpty()) {
-            System.out.println("No customers available.");
-            return;
-        }
-
-        System.out.println("Select a customer:");
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
-            System.out.println((i + 1) + ". " + customer.getDisplayName());
-        }
-
-        System.out.print("Enter customer number: ");
-        int customerIndex = getIntInput() - 1;
-
-        if (customerIndex < 0 || customerIndex >= customers.size()) {
-            System.out.println("Invalid customer selection.");
-            return;
-        }
-
-        Customer selectedCustomer = customers.get(customerIndex);
-        List<Account> accounts = selectedCustomer.getAccounts();
-
-        System.out.println("\nAccounts for " + selectedCustomer.getDisplayName() + ":");
-        if (accounts.isEmpty()) {
-            System.out.println("No accounts found for this customer.");
-        } else {
-            for (Account account : accounts) {
-                System.out.println(account.getAccountNumber() + " - " +
-                        account.getAccountType() + " - Balance: $" + account.getBalance());
-            }
-        }
-    }
-
-    private void viewCustomerTransactionHistory() {
-        System.out.println("\n=== VIEW CUSTOMER TRANSACTION HISTORY ===");
-
-        if (customers.isEmpty()) {
-            System.out.println("No customers available.");
-            return;
-        }
-
-        System.out.println("Select a customer:");
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
-            System.out.println((i + 1) + ". " + customer.getDisplayName());
-        }
-
-        System.out.print("Enter customer number: ");
-        int customerIndex = getIntInput() - 1;
-
-        if (customerIndex < 0 || customerIndex >= customers.size()) {
-            System.out.println("Invalid customer selection.");
-            return;
-        }
-
-        Customer selectedCustomer = customers.get(customerIndex);
-        List<Account> accounts = selectedCustomer.getAccounts();
-
-        if (accounts.isEmpty()) {
-            System.out.println("No accounts found for this customer.");
-            return;
-        }
-
-        System.out.println("Select an account:");
-        for (int i = 0; i < accounts.size(); i++) {
-            Account account = accounts.get(i);
-            System.out.println((i + 1) + ". " + account.getAccountNumber() + " - " + account.getAccountType());
-        }
-
-        System.out.print("Enter account number: ");
-        int accountIndex = getIntInput() - 1;
-
-        if (accountIndex < 0 || accountIndex >= accounts.size()) {
-            System.out.println("Invalid account selection.");
-            return;
-        }
-
-        Account selectedAccount = accounts.get(accountIndex);
-        List<Transaction> transactions = selectedAccount.getTransactionHistory();
-
-        System.out.println("\nTransaction History for Account: " + selectedAccount.getAccountNumber());
-        if (transactions.isEmpty()) {
-            System.out.println("No transactions found.");
-        } else {
-            for (Transaction transaction : transactions) {
-                System.out.println(transaction);
-            }
-        }
-    }
-
-    private void processMonthlyInterest() {
-        System.out.println("\n=== PROCESS MONTHLY INTEREST ===");
-
-        int processedAccounts = 0;
+    // === INTEREST PROCESSING ===
+    public void processMonthlyInterest() {
         double totalInterestPaid = 0.0;
+        int processedAccounts = 0;
 
         for (Customer customer : customers) {
             for (Account account : customer.getAccounts()) {
                 if (account instanceof InterestBearing) {
                     double interest = ((InterestBearing) account).calculateInterest();
                     account.deposit(interest);
-                    processedAccounts++;
+                    // Add system-authorized interest transaction
+                    Transaction interestTransaction = new Transaction("INTEREST", interest, "Monthly interest payment", "System");
+                    account.getTransactionHistory().add(interestTransaction);
                     totalInterestPaid += interest;
+                    processedAccounts++;
 
-                    System.out.println("Paid $" + interest + " interest to account " +
+                    System.out.println("Interest paid: P" + interest + " to account " +
                             account.getAccountNumber() + " (" + customer.getDisplayName() + ")");
                 }
             }
         }
 
-        System.out.println("Interest processing completed. Processed " + processedAccounts +
-                " accounts. Total interest paid: $" + totalInterestPaid);
+        saveAllData(); // Save after processing all interest
+        System.out.println("Interest processing completed: " + processedAccounts +
+                " accounts processed. Total interest paid: P" + totalInterestPaid);
     }
 
-    private void generateCustomerStatement() {
-        System.out.println("\n=== GENERATE CUSTOMER STATEMENT ===");
-
-        if (customers.isEmpty()) {
-            System.out.println("No customers available.");
-            return;
-        }
-
-        System.out.println("Select a customer:");
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
-            System.out.println((i + 1) + ". " + customer.getDisplayName());
-        }
-
-        System.out.print("Enter customer number: ");
-        int customerIndex = getIntInput() - 1;
-
-        if (customerIndex < 0 || customerIndex >= customers.size()) {
-            System.out.println("Invalid customer selection.");
-            return;
-        }
-
-        Customer selectedCustomer = customers.get(customerIndex);
-        List<Account> accounts = selectedCustomer.getAccounts();
-
-        if (accounts.isEmpty()) {
-            System.out.println("No accounts found for this customer.");
-            return;
-        }
-
-        System.out.println("\n=== CUSTOMER STATEMENT for " + selectedCustomer.getDisplayName() + " ===");
-        System.out.println("Generated on: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-        System.out.println("==============================================");
-
-        double totalBalance = 0.0;
-        int totalTransactions = 0;
-
-        for (Account account : accounts) {
-            System.out.println("\nAccount: " + account.getAccountNumber() + " (" + account.getAccountType() + ")");
-            System.out.println("Balance: $" + account.getBalance());
-            totalBalance += account.getBalance();
-
-            List<Transaction> transactions = account.getTransactionHistory();
-            totalTransactions += transactions.size();
-
-            if (transactions.isEmpty()) {
-                System.out.println("No transactions for this account.");
-            } else {
-                System.out.println("Transaction History:");
-                for (Transaction transaction : transactions) {
-                    System.out.println("  " + transaction);
-                }
-            }
-            System.out.println("----------------------------------------------");
-        }
-
-        System.out.println("SUMMARY:");
-        System.out.println("Total Accounts: " + accounts.size());
-        System.out.println("Total Balance: $" + totalBalance);
-        System.out.println("Total Transactions: " + totalTransactions);
-        System.out.println("==============================================");
-    }
-
-    private void logout() {
-        if (currentCustomer != null) {
-            System.out.println("Logging out customer: " + currentCustomer.getDisplayName());
-            currentCustomer = null;
-        } else if (currentEmployee != null) {
-            System.out.println("Logging out employee: " + currentEmployee.getFirstName() + " " + currentEmployee.getLastName());
-            currentEmployee = null;
-        }
-        System.out.println("Returning to main menu...");
-    }
-
-    private void saveAllData() {
-        dbManager.saveData(this);
-    }
-
-    private String generateAccountNumber() {
-        return "ACC" + (1000 + customers.stream()
-                .mapToInt(c -> c.getAccounts().size())
-                .sum() + 1);
-    }
-
-    private int getIntInput() {
-        while (true) {
-            try {
-                return Integer.parseInt(scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.print("Invalid input. Please enter a number: ");
-            }
-        }
-    }
-
-    private double getDoubleInput() {
-        while (true) {
-            try {
-                return Double.parseDouble(scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.print("Invalid input. Please enter a number: ");
-            }
-        }
-    }
-
-    // Add this to your BankingSystem.java
+    // === GETTER METHODS ===
     public Customer getCurrentCustomer() {
         return currentCustomer;
     }
 
     public BankEmployee getCurrentEmployee() {
         return currentEmployee;
+    }
+
+    public List<Account> getCurrentCustomerAccounts() {
+        if (currentCustomer != null) {
+            return currentCustomer.getAccounts();
+        }
+        return new ArrayList<>();
+    }
+
+    public List<Account> getAllAccounts() {
+        List<Account> allAccounts = new ArrayList<>();
+        for (Customer customer : customers) {
+            allAccounts.addAll(customer.getAccounts());
+        }
+        return allAccounts;
+    }
+
+    // === UTILITY METHODS ===
+    private String generateAccountNumber() {
+        int totalAccounts = customers.stream()
+                .mapToInt(c -> c.getAccounts().size())
+                .sum();
+        return "ACC" + (1000 + totalAccounts + 1);
+    }
+
+    // === DEBUG/HELPER METHODS ===
+    public void printSystemStatus() {
+        System.out.println("=== BANKING SYSTEM STATUS ===");
+        System.out.println("Employees: " + employees.size());
+        System.out.println("Customers: " + customers.size());
+
+        int totalAccounts = 0;
+        double totalBalance = 0.0;
+        for (Customer customer : customers) {
+            totalAccounts += customer.getAccounts().size();
+            for (Account account : customer.getAccounts()) {
+                totalBalance += account.getBalance();
+            }
+        }
+
+        System.out.println("Total Accounts: " + totalAccounts);
+        System.out.println("Total Balance: P" + String.format("%.2f", totalBalance));
+
+        if (currentCustomer != null) {
+            System.out.println("Current User: Customer - " + currentCustomer.getDisplayName());
+        } else if (currentEmployee != null) {
+            System.out.println("Current User: Employee - " + currentEmployee.getFirstName() + " " + currentEmployee.getLastName());
+        } else {
+            System.out.println("Current User: None (Logged out)");
+        }
+        System.out.println("=============================");
+    }
+
+    // Method to help with debugging - get customer by username
+    public Customer getCustomerByUsername(String username) {
+        return findCustomerByUsername(username);
+    }
+
+    // Method to help with debugging - get account by number
+    public Account getAccountByNumber(String accountNumber) {
+        return findAccountByNumber(accountNumber);
     }
 }

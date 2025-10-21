@@ -1,11 +1,13 @@
-public class IndividualCustomer extends Customer {
+import java.io.Serializable;
+
+public class IndividualCustomer extends Customer implements Serializable {
+    private static final long serialVersionUID = 1L;
     private String firstName;
     private String lastName;
     private String dateOfBirth;
     private String governmentId;
     private String sourceOfIncome;
 
-    // Constructor with all parameters including sourceOfIncome
     public IndividualCustomer(String username, String password, String firstName, String lastName,
                               String address, String phoneNumber, String dateOfBirth,
                               String governmentId, String sourceOfIncome) {
@@ -15,13 +17,6 @@ public class IndividualCustomer extends Customer {
         this.dateOfBirth = dateOfBirth;
         this.governmentId = governmentId;
         this.sourceOfIncome = sourceOfIncome;
-    }
-
-    // Constructor without sourceOfIncome (for backward compatibility)
-    public IndividualCustomer(String username, String password, String firstName, String lastName,
-                              String address, String phoneNumber, String dateOfBirth,
-                              String governmentId) {
-        this(username, password, firstName, lastName, address, phoneNumber, dateOfBirth, governmentId, "Not Specified");
     }
 
     @Override

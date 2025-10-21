@@ -1,4 +1,4 @@
-// NavigationController.java
+import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 public class NavigationController {
@@ -56,5 +56,22 @@ public class NavigationController {
         AccountManagementScreen accountManagement = new AccountManagementScreen(this, bankingSystem);
         primaryStage.setScene(accountManagement.getScene());
         primaryStage.setTitle("Banking System - Account Management");
+    }
+
+    public void showCustomerList() {
+        CustomerListScreen customerList = new CustomerListScreen(this, bankingSystem);
+        primaryStage.setScene(customerList.getScene());
+        primaryStage.setTitle("Banking System - Customer List");
+    }
+
+    public void showStatementScreen() {
+        StatementScreen statementScreen = new StatementScreen(this, bankingSystem);
+        primaryStage.setScene(statementScreen.getScene());
+        primaryStage.setTitle("Banking System - Generate Statement");
+    }
+
+    public void showEmployeeRegistrationScreen(Scene scene) {
+        primaryStage.setScene(scene);
+        primaryStage.setTitle("Banking System - Register Employee");
     }
 }

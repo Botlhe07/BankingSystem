@@ -1,4 +1,3 @@
-// MainMenuScreen.java
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -33,13 +32,16 @@ public class MainMenuScreen {
         VBox content = new VBox(30);
         content.setPadding(new Insets(40));
         content.setAlignment(Pos.CENTER);
+        content.setStyle("-fx-background-color: #f8f9fa;"); // Light background for contrast
 
+        // Welcome label - changed to black/dark color
         Label welcomeLabel = new Label("Welcome to Banking System");
         welcomeLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
-        welcomeLabel.getStyleClass().add("header-title");
+        welcomeLabel.setStyle("-fx-text-fill: #2c3e50; -fx-font-weight: bold;"); // Dark blue-gray color
 
+        // Description label - also dark color
         Label descriptionLabel = new Label("Choose an option to continue");
-        descriptionLabel.getStyleClass().add("header-subtitle");
+        descriptionLabel.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 14px;"); // Gray color
 
         // Button container
         VBox buttonContainer = new VBox(15);
@@ -93,8 +95,9 @@ public class MainMenuScreen {
     }
 
     private void showEmployeeRegistration() {
-        // For now, navigate to login screen - employee registration can be added later
-        navigationController.showLoginScreen();
+        // Create a new employee registration dialog
+        EmployeeRegistrationScreen registrationScreen = new EmployeeRegistrationScreen(navigationController, bankingSystem);
+        navigationController.showEmployeeRegistrationScreen(registrationScreen.getScene());
     }
 
     public Scene getScene() {
