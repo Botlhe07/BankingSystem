@@ -52,13 +52,13 @@ public class MainMenuScreen {
         loginButton.getStyleClass().addAll("btn", "btn-primary");
         loginButton.setPrefHeight(50);
         loginButton.setMaxWidth(Double.MAX_VALUE);
-        loginButton.setOnAction(e -> navigationController.showLoginScreen());
+        loginButton.setOnAction(e -> navigationController.showLoginScreen()); // Use navigationController
 
         Button registerEmployeeButton = new Button("Register New Employee");
         registerEmployeeButton.getStyleClass().addAll("btn", "btn-secondary");
         registerEmployeeButton.setPrefHeight(50);
         registerEmployeeButton.setMaxWidth(Double.MAX_VALUE);
-        registerEmployeeButton.setOnAction(e -> showEmployeeRegistration());
+        registerEmployeeButton.setOnAction(e -> navigationController.showEmployeeRegistration()); // Use navigationController
 
         Button exitButton = new Button("Exit System");
         exitButton.getStyleClass().addAll("btn", "btn-outline");
@@ -73,7 +73,6 @@ public class MainMenuScreen {
         mainLayout.setCenter(content);
 
         scene = new Scene(mainLayout, 900, 700);
-        scene.getStylesheets().add("banking-styles.css");
     }
 
     private HBox createHeader(String title, String subtitle) {
@@ -92,12 +91,6 @@ public class MainMenuScreen {
         HBox.setHgrow(titleBox, Priority.ALWAYS);
 
         return header;
-    }
-
-    private void showEmployeeRegistration() {
-        // Create a new employee registration dialog
-        EmployeeRegistrationScreen registrationScreen = new EmployeeRegistrationScreen(navigationController, bankingSystem);
-        navigationController.showEmployeeRegistrationScreen(registrationScreen.getScene());
     }
 
     public Scene getScene() {

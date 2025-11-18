@@ -3,18 +3,20 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import java.util.List;
 
 public class CustomerDashboardScreen {
     private Scene scene;
     private NavigationController navigationController;
     private BankingSystem bankingSystem;
+    private AccountDAO accountDAO;
+    private TransactionDAO transactionDAO;
 
     public CustomerDashboardScreen(NavigationController navigationController, BankingSystem bankingSystem) {
         this.navigationController = navigationController;
         this.bankingSystem = bankingSystem;
+        this.accountDAO = new AccountDAO();
+        this.transactionDAO = new TransactionDAO();
         createUI();
     }
 
@@ -37,7 +39,6 @@ public class CustomerDashboardScreen {
         mainLayout.setCenter(content);
 
         scene = new Scene(mainLayout, 1200, 800);
-        scene.getStylesheets().add("banking-styles.css");
     }
 
     private HBox createHeader(String title, String subtitle) {
@@ -129,10 +130,10 @@ public class CustomerDashboardScreen {
 
         // Quick stats
         HBox statsBox = new HBox(20);
-        List<Account> accounts = bankingSystem.getCurrentCustomerAccounts();
+        List<Account> accounts = getCurrentCustomerAccounts();
         int accountCount = accounts.size();
         double totalBalance = accounts.stream().mapToDouble(Account::getBalance).sum();
-        int transactionCount = accounts.stream().mapToInt(acc -> acc.getTransactionHistory().size()).sum();
+        int transactionCount = getTotalTransactionCount(accounts);
 
         statsBox.getChildren().addAll(
                 createStatCard("Total Accounts", String.valueOf(accountCount)),
@@ -152,7 +153,7 @@ public class CustomerDashboardScreen {
         Label summaryTitle = new Label("Your Accounts Summary");
         summaryTitle.getStyleClass().add("card-title");
 
-        List<Account> accounts = bankingSystem.getCurrentCustomerAccounts();
+        List<Account> accounts = getCurrentCustomerAccounts();
 
         if (accounts.isEmpty()) {
             Label noAccountsLabel = new Label("You don't have any accounts yet.");
@@ -216,7 +217,8 @@ public class CustomerDashboardScreen {
                 navigationController.showCustomerDashboard();
                 break;
             case "View Accounts":
-                navigationController.showAccountManagement();
+                // FIXED: Use customer-specific account view
+                showCustomerAccountView();
                 break;
             case "Deposit Funds":
                 navigationController.showTransactionScreen("Deposit");
@@ -233,8 +235,49 @@ public class CustomerDashboardScreen {
         }
     }
 
+    // ADD THIS METHOD: Customer-specific account view
+    private void showCustomerAccountView() {
+        Customer customer = bankingSystem.getCurrentCustomer();
+        List<Account> accounts = getCurrentCustomerAccounts();
+
+        StringBuilder accountInfo = new StringBuilder();
+        accountInfo.append("=== YOUR ACCOUNTS ===\n\n");
+
+        if (accounts.isEmpty()) {
+            accountInfo.append("You don't have any accounts yet.\n");
+        } else {
+            for (Account account : accounts) {
+                accountInfo.append("Account: ").append(account.getAccountNumber()).append("\n");
+                accountInfo.append("Type: ").append(account.getAccountType()).append("\n");
+                accountInfo.append("Balance: ").append(account.getFormattedBalance()).append("\n");
+                accountInfo.append("Branch: ").append(account.getBranch()).append("\n");
+
+                // Show signatories
+                List<String> signatories = account.getSignatories();
+                accountInfo.append("Signatories: ");
+                if (signatories.isEmpty()) {
+                    accountInfo.append("None");
+                } else {
+                    accountInfo.append(String.join(", ", signatories));
+                }
+                accountInfo.append("\n\n");
+            }
+        }
+
+        TextArea textArea = new TextArea(accountInfo.toString());
+        textArea.setEditable(false);
+        textArea.setWrapText(true);
+        textArea.setPrefSize(600, 400);
+
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Your Accounts");
+        alert.setHeaderText("Account Summary for " + customer.getDisplayName());
+        alert.getDialogPane().setContent(textArea);
+        alert.showAndWait();
+    }
+
     private void showCustomerTransactionHistory() {
-        List<Account> accounts = bankingSystem.getCurrentCustomerAccounts();
+        List<Account> accounts = getCurrentCustomerAccounts();
         StringBuilder message = new StringBuilder("Your Transaction History:\n\n");
 
         if (accounts.isEmpty()) {
@@ -242,7 +285,7 @@ public class CustomerDashboardScreen {
         } else {
             boolean hasTransactions = false;
             for (Account account : accounts) {
-                List<Transaction> transactions = account.getTransactionHistory();
+                List<Transaction> transactions = transactionDAO.getTransactionsByAccount(account.getAccountNumber());
                 if (!transactions.isEmpty()) {
                     hasTransactions = true;
                     message.append("=== ").append(account.getAccountNumber()).append(" ===\n");
@@ -271,7 +314,7 @@ public class CustomerDashboardScreen {
 
     private void generateCustomerStatement() {
         Customer customer = bankingSystem.getCurrentCustomer();
-        List<Account> accounts = bankingSystem.getCurrentCustomerAccounts();
+        List<Account> accounts = getCurrentCustomerAccounts();
 
         StringBuilder statement = new StringBuilder();
         statement.append("=== ACCOUNT STATEMENT ===\n\n");
@@ -291,7 +334,7 @@ public class CustomerDashboardScreen {
                 statement.append("Balance: ").append(account.getFormattedBalance()).append("\n");
                 statement.append("Branch: ").append(account.getBranch()).append("\n");
 
-                List<Transaction> transactions = account.getTransactionHistory();
+                List<Transaction> transactions = transactionDAO.getTransactionsByAccount(account.getAccountNumber());
                 totalTransactions += transactions.size();
                 totalBalance += account.getBalance();
 
@@ -322,6 +365,23 @@ public class CustomerDashboardScreen {
         alert.setHeaderText("Your Personal Account Statement");
         alert.getDialogPane().setContent(textArea);
         alert.showAndWait();
+    }
+
+    private List<Account> getCurrentCustomerAccounts() {
+        Customer currentCustomer = bankingSystem.getCurrentCustomer();
+        if (currentCustomer != null) {
+            return accountDAO.getAccountsByCustomer(currentCustomer.getCustomerId());
+        }
+        return List.of();
+    }
+
+    private int getTotalTransactionCount(List<Account> accounts) {
+        int total = 0;
+        for (Account account : accounts) {
+            List<Transaction> transactions = transactionDAO.getTransactionsByAccount(account.getAccountNumber());
+            total += transactions.size();
+        }
+        return total;
     }
 
     public Scene getScene() {

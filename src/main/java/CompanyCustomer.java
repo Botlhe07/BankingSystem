@@ -19,12 +19,30 @@ public class CompanyCustomer extends Customer implements Serializable {
 
     @Override
     public String getDisplayName() {
-        return companyName + " (Company)";
+        return companyName;
     }
 
     @Override
     public String getCustomerType() {
+        return "COMPANY"; // MUST BE UPPERCASE
+    }
+
+    @Override
+    public String getFirstName() {
+        if (this.contactName != null && !this.contactName.trim().isEmpty()) {
+            String[] nameParts = this.contactName.split(" ", 2);
+            return nameParts[0];
+        }
         return "Company";
+    }
+
+    @Override
+    public String getLastName() {
+        if (this.contactName != null && !this.contactName.trim().isEmpty()) {
+            String[] nameParts = this.contactName.split(" ", 2);
+            return nameParts.length > 1 ? nameParts[1] : "";
+        }
+        return "";
     }
 
     public String getCompanyName() { return companyName; }

@@ -2,6 +2,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+
 public abstract class Account implements Serializable {
     private static final long serialVersionUID = 1L;
     protected String accountNumber;
@@ -20,15 +21,19 @@ public abstract class Account implements Serializable {
 
     public void deposit(double amount) {
         if (amount > 0) {
+            double oldBalance = balance;
             balance += amount;
-            transactions.add(new Transaction("DEPOSIT", amount, "Deposit to account"));
+            // FIXED: Use 5-argument Transaction constructor
+            transactions.add(new Transaction(accountNumber, "DEPOSIT", amount, balance, "Deposit to account"));
         }
     }
 
     public boolean withdraw(double amount) {
         if (amount > 0 && balance >= amount) {
+            double oldBalance = balance;
             balance -= amount;
-            transactions.add(new Transaction("WITHDRAWAL", amount, "Withdrawal from account"));
+            // FIXED: Use 5-argument Transaction constructor
+            transactions.add(new Transaction(accountNumber, "WITHDRAWAL", amount, balance, "Withdrawal from account"));
             return true;
         }
         return false;

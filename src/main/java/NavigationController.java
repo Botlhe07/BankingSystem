@@ -40,6 +40,19 @@ public class NavigationController {
         primaryStage.setTitle("Banking System - Register Customer");
     }
 
+    // ADDED: Employee registration method without parameters
+    public void showEmployeeRegistration() {
+        EmployeeRegistrationScreen registrationScreen = new EmployeeRegistrationScreen(this, bankingSystem);
+        primaryStage.setScene(registrationScreen.getScene());
+        primaryStage.setTitle("Banking System - Register Employee");
+    }
+
+    // KEEP: Existing method with Scene parameter (if needed elsewhere)
+    public void showEmployeeRegistrationScreen(Scene scene) {
+        primaryStage.setScene(scene);
+        primaryStage.setTitle("Banking System - Register Employee");
+    }
+
     public void showAccountCreation() {
         AccountCreationScreen accountScreen = new AccountCreationScreen(this, bankingSystem);
         primaryStage.setScene(accountScreen.getScene());
@@ -68,10 +81,5 @@ public class NavigationController {
         StatementScreen statementScreen = new StatementScreen(this, bankingSystem);
         primaryStage.setScene(statementScreen.getScene());
         primaryStage.setTitle("Banking System - Generate Statement");
-    }
-
-    public void showEmployeeRegistrationScreen(Scene scene) {
-        primaryStage.setScene(scene);
-        primaryStage.setTitle("Banking System - Register Employee");
     }
 }
